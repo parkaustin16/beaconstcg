@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -9,10 +9,21 @@ import { useLanguage } from '@/lib/i18n-client';
 export default function LoginClient() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
   const { t, withLang } = useLanguage();
+
+  useEffect(() => {
+    const remembered = window.localStorage.getItem('cardjang.rememberedEmail');
+    if (remembered) {
+      setEmail(remembered);
+      setRememberEmail(true);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,11 +37,36 @@ export default function LoginClient() {
       });
 
       if (error) throw error;
-      router.push(withLang('/marketplace'));
+
+      if (rememberEmail) {
+        window.localStorage.setItem('cardjang.rememberedEmail', email);
+      } else {
+        window.localStorage.removeItem('cardjang.rememberedEmail');
+      }
+
+      router.push(withLang('/catalog'));
     } catch (err) {
       setError(err instanceof Error ? err.message : t.auth.signInFailed);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setOauthLoading(true);
+
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo },
+      });
+
+      if (error) throw error;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.auth.signInFailed);
+      setOauthLoading(false);
     }
   };
 
@@ -60,6 +96,8 @@ export default function LoginClient() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoFocus
+              autoComplete="email"
               required
               className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
             />
@@ -72,14 +110,42 @@ export default function LoginClient() {
             >
               {t.auth.password}
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                className="w-full px-4 py-2 pr-20 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 px-3 text-sm font-medium text-zinc-600 dark:text-zinc-300"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <label className="inline-flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
+              <input
+                type="checkbox"
+                checked={rememberEmail}
+                onChange={(e) => setRememberEmail(e.target.checked)}
+                className="rounded border-zinc-300 dark:border-zinc-700"
+              />
+              Remember email
+            </label>
+            <Link
+              href={withLang('/auth/forgot-password')}
+              className="text-blue-600 dark:text-blue-400 font-semibold"
+            >
+              {t.auth.forgotPassword}
+            </Link>
           </div>
 
           <button
@@ -88,6 +154,15 @@ export default function LoginClient() {
             className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? t.auth.signingIn : t.auth.signIn}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={oauthLoading}
+            className="w-full py-2 px-4 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 rounded-lg font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {oauthLoading ? t.auth.signingIn : t.auth.continueWithGoogle}
           </button>
         </form>
 
@@ -98,6 +173,15 @@ export default function LoginClient() {
             className="text-blue-600 dark:text-blue-400 font-semibold"
           >
             {t.auth.signUp}
+          </Link>
+        </p>
+
+        <p className="mt-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
+          <Link
+            href={withLang('/auth/forgot-id')}
+            className="text-blue-600 dark:text-blue-400 font-semibold"
+          >
+            {t.auth.forgotId}
           </Link>
         </p>
       </div>
