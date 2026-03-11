@@ -22,17 +22,41 @@ interface ProductListingGroup {
 }
 
 const fetchProducts = async (setId: string, language: string): Promise<Product[]> => {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('set_id', setId)
+  if (language === 'en') {
+    // English products have set_id directly
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('set_id', setId);
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data as Product[];
+  }
+
+  // Korean: Join product_localizations with products through product_id to get set_id
+  const { data: localizations, error: locError } = await supabase
+    .from('product_localizations')
+    .select('*, products!product_id(set_id)')
     .eq('language', language);
 
-  if (error || !data) {
+  if (locError || !localizations) {
     return [];
   }
 
-  return data as Product[];
+  // Filter by set_id from the joined products data
+  const filtered = localizations.filter((item: any) => {
+    return item.products?.set_id === setId;
+  });
+
+  // Return localizations mapped to Product format
+  return filtered.map((item: any) => ({
+    ...item,
+    product_id: item.product_id,
+    name: item.name,
+  })) as Product[];
 };
 
 const getProductId = (product: Product, index: number) =>

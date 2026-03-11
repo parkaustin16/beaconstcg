@@ -64,6 +64,17 @@ export interface Card {
 }
 
 /**
+ * catalog.product_localizations table
+ * Linked to catalog.products
+ */
+export interface ProductLocalization {
+  product_id: string;
+  name: string;
+  language: 'kr' | 'en';
+  localized_slug?: string;
+}
+
+/**
  * catalog.products table
  * Sealed product listings tied to sets
  */
