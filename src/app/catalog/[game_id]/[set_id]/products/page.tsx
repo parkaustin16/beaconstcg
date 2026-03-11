@@ -22,41 +22,88 @@ interface ProductListingGroup {
 }
 
 const fetchProducts = async (setId: string, language: string): Promise<Product[]> => {
-  if (language === 'en') {
-    // English products have set_id directly
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('set_id', setId);
+  const { data: products, error: productError } = await supabase
+    .from('products')
+    .select('*')
+    .eq('set_id', setId);
 
-    if (error || !data) {
-      return [];
-    }
-
-    return data as Product[];
-  }
-
-  // Korean: Join product_localizations with products through product_id to get set_id
-  const { data: localizations, error: locError } = await supabase
-    .from('product_localizations')
-    .select('*, products!product_id(set_id)')
-    .eq('language', language);
-
-  if (locError || !localizations) {
+  if (productError || !products) {
     return [];
   }
 
-  // Filter by set_id from the joined products data
-  const filtered = localizations.filter((item: any) => {
-    return item.products?.set_id === setId;
-  });
+  if (language === 'en') {
+    return products as Product[];
+  }
 
-  // Return localizations mapped to Product format
-  return filtered.map((item: any) => ({
-    ...item,
-    product_id: item.product_id,
-    name: item.name,
-  })) as Product[];
+  const productIds = products
+    .map((product: any) => product.product_id)
+    .filter((productId: string | null | undefined): productId is string =>
+      typeof productId === 'string' && productId.length > 0
+    );
+
+  if (productIds.length === 0) {
+    return products as Product[];
+  }
+
+  const { data: localizations, error: localizationError } = await supabase
+    .from('product_localizations')
+    .select('product_id, name, product_type, series, local_slug, release_date, language')
+    .in('product_id', productIds);
+
+  if (localizationError || !localizations || localizations.length === 0) {
+    return products as Product[];
+  }
+
+  const localizationsByProductId = new Map<string, Array<Record<string, unknown>>>();
+
+  for (const localization of localizations as Array<Record<string, unknown>>) {
+    const productId = localization.product_id;
+    if (typeof productId !== 'string' || productId.length === 0) {
+      continue;
+    }
+
+    const existing = localizationsByProductId.get(productId) ?? [];
+    existing.push(localization);
+    localizationsByProductId.set(productId, existing);
+  }
+
+  return products.map((product: any) => {
+    const candidates = localizationsByProductId.get(product.product_id) ?? [];
+    const preferredLocalization =
+      candidates.find((candidate) => candidate.language === language) ?? candidates[0];
+
+    if (!preferredLocalization) {
+      return product;
+    }
+
+    return {
+      ...product,
+      name:
+        typeof preferredLocalization.name === 'string'
+          ? preferredLocalization.name
+          : product.name,
+      product_type:
+        typeof preferredLocalization.product_type === 'string'
+          ? preferredLocalization.product_type
+          : product.product_type,
+      series:
+        typeof preferredLocalization.series === 'string'
+          ? preferredLocalization.series
+          : product.series,
+      local_slug:
+        typeof preferredLocalization.local_slug === 'string'
+          ? preferredLocalization.local_slug
+          : product.local_slug,
+      product_slug:
+        typeof preferredLocalization.local_slug === 'string'
+          ? preferredLocalization.local_slug
+          : product.product_slug,
+      release_date:
+        typeof preferredLocalization.release_date === 'string'
+          ? preferredLocalization.release_date
+          : product.release_date,
+    };
+  }) as Product[];
 };
 
 const getProductId = (product: Product, index: number) =>
