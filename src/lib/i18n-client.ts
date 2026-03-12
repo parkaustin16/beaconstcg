@@ -43,6 +43,7 @@ export const useLanguage = () => {
 
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname);
+    router.refresh();
   };
 
   return { lang, t, withLang, setLanguage };

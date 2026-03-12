@@ -1,6 +1,10 @@
 import Link from 'next/link';
 import { normalizeLanguage, translations } from '@/lib/i18n';
-import { fetchGameId, fetchSet, fetchSetLocalization } from './set-data';
+import {
+	fetchGameId,
+	fetchSet,
+	fetchSetLocalizationDetails,
+} from './set-data';
 
 export const revalidate = 60;
 
@@ -29,11 +33,10 @@ export default async function SetDetailPage({
 	const t = translations[language];
 	const gameResult = await fetchGameId(gameSlug);
 	const setResult = await fetchSet(gameResult.gameId, setSlug, language);
-	const localizedSetName = setResult.localizedName
-		? setResult.localizedName
-		: setResult.set
-			? await fetchSetLocalization(setResult.set.set_id, language)
-			: null;
+	const localizationDetails = setResult.set
+		? await fetchSetLocalizationDetails(setResult.set.set_id, language)
+		: { name: null, localSetSlug: null };
+	const localizedSetName = setResult.localizedName ?? localizationDetails.name;
 	const errorMessage = gameResult.errorMessage ?? setResult.errorMessage;
 	const set = setResult.set;
 	const displayName = localizedSetName ?? set?.name;

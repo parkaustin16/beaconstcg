@@ -2,6 +2,25 @@ import { supabase } from '@/lib/supabase';
 import type { CardSet } from '@/lib/supabase';
 import type { Language } from '@/lib/i18n';
 
+type SetLocalizationRow = {
+  set_id: string;
+  name: string;
+  local_set_slug: string | null;
+  master_set_slug?: string | null;
+  language: string;
+};
+
+const pickPreferredSetLocalization = (
+  rows: SetLocalizationRow[],
+  language: Language
+): SetLocalizationRow | null => {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return rows.find((row) => row.language === language) ?? rows[0];
+};
+
 export const fetchGameId = async (
   gameSlug: string
 ): Promise<{ gameId: string | null; errorMessage: string | null }> => {
@@ -131,7 +150,7 @@ export const fetchSet = async (
         .from('sets')
         .select('set_id, game_id, name, code, slug')
         .eq('game_id', gameId)
-        .ilike('slug', localizationData.master_set_slug)
+        .eq('set_id', localizationData.set_id)
         .limit(1)
         .maybeSingle();
 
@@ -146,6 +165,49 @@ export const fetchSet = async (
       return {
         set: data,
         localizedName: localizationData.name,
+        errorMessage: null,
+      };
+    }
+
+    const { data: fallbackLocalizations, error: fallbackLocalizationError } = await supabase
+      .from('set_localizations')
+      .select('set_id, name, local_set_slug, master_set_slug, language')
+      .ilike('local_set_slug', normalizedSlug)
+      .limit(5);
+
+    if (fallbackLocalizationError) {
+      return {
+        set: null,
+        localizedName: null,
+        errorMessage: fallbackLocalizationError.message,
+      };
+    }
+
+    const fallbackLocalization = pickPreferredSetLocalization(
+      (fallbackLocalizations ?? []) as SetLocalizationRow[],
+      language
+    );
+
+    if (fallbackLocalization) {
+      const { data, error } = await supabase
+        .from('sets')
+        .select('set_id, game_id, name, code, slug')
+        .eq('game_id', gameId)
+        .eq('set_id', fallbackLocalization.set_id)
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data) {
+        return {
+          set: null,
+          localizedName: fallbackLocalization.name,
+          errorMessage: error?.message ?? 'Unknown error fetching set',
+        };
+      }
+
+      return {
+        set: data,
+        localizedName: fallbackLocalization.name,
         errorMessage: null,
       };
     }
@@ -185,22 +247,45 @@ export const fetchSet = async (
   return { set: fallbackData, localizedName: null, errorMessage: null };
 };
 
+export const fetchSetLocalizationDetails = async (
+  setId: string,
+  language: Language
+): Promise<{ name: string | null; localSetSlug: string | null }> => {
+  if (language === 'en') {
+    return {
+      name: null,
+      localSetSlug: null,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('set_localizations')
+    .select('set_id, name, local_set_slug, language')
+    .eq('set_id', setId)
+    .limit(5);
+
+  if (error || !data || data.length === 0) {
+    return {
+      name: null,
+      localSetSlug: null,
+    };
+  }
+
+  const localization = pickPreferredSetLocalization(
+    data as SetLocalizationRow[],
+    language
+  );
+
+  return {
+    name: localization?.name ?? null,
+    localSetSlug: localization?.local_set_slug?.trim() ?? null,
+  };
+};
+
 export const fetchSetLocalization = async (
   setId: string,
   language: Language
 ): Promise<string | null> => {
-  if (language === 'en') return null;
-
-  const { data, error } = await supabase
-    .from('set_localizations')
-    .select('name, language')
-    .eq('set_id', setId)
-    .eq('language', language)
-    .maybeSingle();
-
-  if (error || !data) {
-    return null;
-  }
-
-  return data.name;
+  const localization = await fetchSetLocalizationDetails(setId, language);
+  return localization.name;
 };

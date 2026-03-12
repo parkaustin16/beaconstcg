@@ -6,6 +6,18 @@ import SetBrowser from '@/components/SetBrowser';
 
 export const revalidate = 300;
 
+type SetLocalizationRow = {
+	set_id: string;
+	name: string;
+	local_set_slug?: string | null;
+	language: string;
+};
+
+const pickPreferredSetLocalization = (
+	rows: SetLocalizationRow[],
+	language: Language
+) => rows.find((row) => row.language === language) ?? rows[0] ?? null;
+
 interface GamePageProps {
 	params: { game_id: string } | Promise<{ game_id: string }>;
 }
@@ -133,7 +145,6 @@ const fetchSets = async (
 	const { data: localizationData, error: localizationError } = await supabase
 		.from('set_localizations')
 		.select('set_id, name, language, local_set_slug, master_set_slug')
-		.eq('language', language)
 		.in('set_id', setIds);
 
 	if (localizationError || !localizationData) {
@@ -144,18 +155,31 @@ const fetchSets = async (
 		};
 	}
 
-	const localizations = localizationData.reduce<
-		Record<string, { name: string; localSetSlug?: string }>
-	>(
+	const groupedLocalizations = localizationData.reduce<Record<string, SetLocalizationRow[]>>(
 		(acc, localization) => {
-			acc[localization.set_id] = {
-				name: localization.name,
-				localSetSlug: localization.local_set_slug ?? undefined,
-			};
+			const existing = acc[localization.set_id] ?? [];
+			existing.push(localization);
+			acc[localization.set_id] = existing;
 			return acc;
 		},
 		{}
 	);
+
+	const localizations = Object.entries(groupedLocalizations).reduce<
+		Record<string, { name: string; localSetSlug?: string }>
+	>((acc, [setId, rows]) => {
+		const localization = pickPreferredSetLocalization(rows, language);
+
+		if (!localization) {
+			return acc;
+		}
+
+		acc[setId] = {
+			name: localization.name,
+			localSetSlug: localization.local_set_slug ?? undefined,
+		};
+		return acc;
+	}, {});
 
 	return { sets: data, localizations, errorMessage: null };
 };
@@ -194,8 +218,6 @@ export default async function GameDetailPage({
 		const setSlug = set.slug?.trim() ?? '';
 		const localization = localizations[set.set_id];
 		const setName = language === 'en' ? set.name : localization?.name ?? set.name;
-		const localizedSlug = localization?.localSetSlug?.trim();
-		const hrefSlug = language === 'en' || !localizedSlug ? setSlug : localizedSlug;
 
 		return {
 			setId: set.set_id,
@@ -203,7 +225,7 @@ export default async function GameDetailPage({
 			name: setName,
 			series: typeof set.series === 'string' ? set.series : null,
 			releaseDate: typeof set.release_date === 'string' ? set.release_date : null,
-			href: `/catalog/${gameSlug}/${hrefSlug}${langParam}`,
+			href: `/catalog/${gameSlug}/${setSlug}${langParam}`,
 		};
 	});
 

@@ -42,6 +42,7 @@ export default function CatalogPage() {
 	const [games, setGames] = useState<Game[]>([]);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [openGameKey, setOpenGameKey] = useState<string | null>(null);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -166,25 +167,49 @@ export default function CatalogPage() {
 							</p>
 						</div>
 					) : (
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+						<div className="grid grid-cols-1 items-start sm:grid-cols-2 lg:grid-cols-3 gap-6">
 							{groupedGames.map((game) => (
-								<details
+								<div
 									key={game.key}
-									className="group rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm"
+									className="group self-start rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm"
 								>
-									<summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+									<button
+										type="button"
+										onClick={() =>
+											setOpenGameKey((current) =>
+												current === game.key ? null : game.key
+											)
+										}
+										className="flex w-full cursor-pointer items-center justify-between gap-4 text-left"
+										aria-expanded={openGameKey === game.key}
+									>
 										<div>
-											<h2 className="text-xl font-semibold text-zinc-900 dark:text-white group-open:text-blue-600 dark:group-open:text-blue-400">
+											<h2 className={`text-xl font-semibold ${
+												openGameKey === game.key
+													? 'text-blue-600 dark:text-blue-400'
+													: 'text-zinc-900 dark:text-white'
+											}`}>
 												{game.name}
 											</h2>
 											<p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
 												{t.catalog.viewSets}
 											</p>
 										</div>
-										<span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-											{game.options.length} option{game.options.length === 1 ? '' : 's'}
-										</span>
-									</summary>
+										<div className="flex items-center gap-3">
+											<span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+												{game.options.length} option{game.options.length === 1 ? '' : 's'}
+											</span>
+											<span
+												className={`text-zinc-500 transition-transform dark:text-zinc-400 ${
+													openGameKey === game.key ? 'rotate-180' : ''
+												}`}
+												aria-hidden="true"
+											>
+												▾
+											</span>
+										</div>
+									</button>
+									{openGameKey === game.key ? (
 									<div className="mt-4 flex flex-col gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
 										{game.options.map((option) => (
 											<Link
@@ -197,7 +222,8 @@ export default function CatalogPage() {
 											</Link>
 										))}
 									</div>
-								</details>
+									) : null}
+								</div>
 							))}
 						</div>
 					)}
