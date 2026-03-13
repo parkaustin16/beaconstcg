@@ -57,7 +57,7 @@ export default function ProfilePage() {
     const averagePrice =
       totalListings === 0
         ? null
-        : cards.reduce((sum, card) => sum + card.price, 0) / totalListings;
+        : cards.reduce((sum, card) => sum + (typeof card.price === 'number' ? card.price : 0), 0) / totalListings;
 
     return { totalListings, totalInventory, averagePrice };
   }, [cards]);

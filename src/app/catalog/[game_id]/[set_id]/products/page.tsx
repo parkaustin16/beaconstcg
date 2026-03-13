@@ -9,6 +9,7 @@ import {
   fetchSetLocalizationDetails,
 } from '../set-data';
 import ProductBrowser from '@/components/ProductBrowser';
+import { getLowestPrice } from '@/lib/catalog-detail';
 
 export const revalidate = 60;
 
@@ -20,6 +21,7 @@ interface SetProductsPageProps {
 
 interface ProductListingGroup {
   key: string;
+  slug: string;
   name: string;
   productType: string | null;
   imageUrl: string | null;
@@ -114,6 +116,12 @@ const fetchProducts = async (setId: string, language: string): Promise<Product[]
 const getProductId = (product: Product, index: number) =>
   product.id ?? product.product_id ?? `${index}`;
 
+const getProductSlug = (product: Product, index: number) => {
+  const localizedSlug = typeof product.local_slug === 'string' ? product.local_slug.trim() : '';
+  const canonicalSlug = typeof product.product_slug === 'string' ? product.product_slug.trim() : '';
+  return localizedSlug || canonicalSlug || `${getProductId(product, index)}`;
+};
+
 const getProductName = (product: Product) =>
   product.name ?? product.product_name ?? 'Sealed product';
 
@@ -147,6 +155,7 @@ const groupProductListings = (products: Product[]): ProductListingGroup[] => {
 
     groups.set(key, {
       key,
+      slug: getProductSlug(product, groups.size),
       name,
       productType,
       imageUrl: getProductImage(product),
@@ -156,17 +165,6 @@ const groupProductListings = (products: Product[]): ProductListingGroup[] => {
 
   return Array.from(groups.values());
 };
-
-const getLowestPrice = (listings: Product[]): number | null => {
-  const priced = listings
-    .map((listing) => listing.price)
-    .filter((price): price is number => typeof price === 'number');
-
-  if (priced.length === 0) return null;
-  return Math.min(...priced);
-};
-
-const formatPrice = (value: number) => `$${value.toFixed(2)}`;
 
 export default async function SetProductsPage({
   params,
@@ -208,6 +206,7 @@ export default async function SetProductsPage({
 
     return {
       key: group.key,
+      href: `/catalog/${gameSlug}/${setSlug}/products/${encodeURIComponent(group.slug)}${langParam}`,
       name: group.name,
       productType: group.productType,
       imageUrl: group.imageUrl,
@@ -217,7 +216,7 @@ export default async function SetProductsPage({
         typeof primaryListing?.release_date === 'string'
           ? primaryListing.release_date
           : null,
-      lowestPrice: getLowestPrice(group.listings),
+      lowestPrice: getLowestPrice(group.listings.map((listing) => listing.price)),
       listings: group.listings.map((listing, index) => ({
         id: getProductId(listing, index),
         price: typeof listing.price === 'number' ? listing.price : null,
@@ -299,6 +298,9 @@ export default async function SetProductsPage({
                 sealedProductFallback: 'Sealed product',
                 noImage: 'No Image',
                 fromPrefix: 'from',
+                viewGallery: t.catalog.viewGallery,
+                viewList: t.catalog.viewList,
+                openDetails: t.catalog.openDetails,
               }}
             />
           )}

@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import type { Card } from '@/lib/supabase';
 import { normalizeLanguage, translations } from '@/lib/i18n';
@@ -8,6 +7,8 @@ import {
   fetchSet,
   fetchSetLocalizationDetails,
 } from '../set-data';
+import CardBrowser from '@/components/CardBrowser';
+import { getLowestPrice } from '@/lib/catalog-detail';
 
 export const revalidate = 60;
 
@@ -19,34 +20,58 @@ interface SetCardsPageProps {
 
 interface CardListingGroup {
   key: string;
-  number: string;
+  slug: string;
+  number: string | null;
   name: string;
-  setCode: string;
+  rarity: string | null;
+  imageUrl: string | null;
+  releaseDate: string | null;
   listings: Card[];
 }
 
 const fetchCards = async (setId: string): Promise<Card[]> => {
   const { data, error } = await supabase
     .from('cards')
-    .select('id, set_id, name, number, set_code, game, rarity, condition, price, image_url')
+    .select('card_id, set_id, card_name, number, set_code, rarity_name, variant_name, card_slug, release_date, image_url, metadata, language, created_at')
     .eq('set_id', setId)
     .order('number')
-    .order('price');
+    .order('card_name');
 
   if (error || !data) {
     return [];
   }
 
-  return data;
+  return data as Card[];
+};
+
+const getCardName = (card: Card) => card.card_name?.trim() ?? card.name?.trim() ?? 'Card';
+
+const getCardNumber = (card: Card) => {
+  const value = card.number?.trim();
+  return value && value.length > 0 ? value : null;
+};
+
+const getCardRarity = (card: Card) => {
+  const value = card.rarity_name?.trim() ?? card.rarity?.trim();
+  return value && value.length > 0 ? value : null;
+};
+
+const getCardSlug = (card: Card, index: number) => {
+  const explicitSlug = card.card_slug?.trim();
+  if (explicitSlug) {
+    return explicitSlug;
+  }
+
+  return String(card.card_id ?? card.id ?? index);
 };
 
 const groupCardListings = (cards: Card[]): CardListingGroup[] => {
   const groups = new Map<string, CardListingGroup>();
 
   for (const card of cards) {
-    const number = card.number?.trim() ?? '';
-    const name = card.name?.trim() ?? 'Card';
-    const setCode = card.set_code?.trim() ?? '';
+    const number = getCardNumber(card);
+    const name = getCardName(card);
+    const rarity = getCardRarity(card);
     const key = `${number}::${name}`.toLowerCase();
     const existing = groups.get(key);
 
@@ -57,26 +82,18 @@ const groupCardListings = (cards: Card[]): CardListingGroup[] => {
 
     groups.set(key, {
       key,
+      slug: getCardSlug(card, groups.size),
       number,
       name,
-      setCode,
+      rarity,
+      imageUrl: typeof card.image_url === 'string' ? card.image_url : null,
+      releaseDate: typeof card.release_date === 'string' ? card.release_date : null,
       listings: [card],
     });
   }
 
   return Array.from(groups.values());
 };
-
-const getLowestPrice = (listings: Card[]): number | null => {
-  const priced = listings
-    .map((listing) => listing.price)
-    .filter((price): price is number => typeof price === 'number');
-
-  if (priced.length === 0) return null;
-  return Math.min(...priced);
-};
-
-const formatPrice = (value: number) => `$${value.toFixed(2)}`;
 
 export default async function SetCardsPage({
   params,
@@ -163,100 +180,31 @@ export default async function SetCardsPage({
               </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/90 dark:bg-zinc-950/50 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                <div className="col-span-6">Card</div>
-                <div className="col-span-2 text-right">Lowest</div>
-                <div className="col-span-2 text-right">Listings</div>
-                <div className="col-span-2 text-right">Set</div>
-              </div>
-              <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {cardListingGroups.map((group) => {
-                  const lowestPrice = getLowestPrice(group.listings);
-
-                  return (
-                  <div key={group.key} className="px-4 sm:px-6 py-5">
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                      <div className="md:col-span-6 flex items-center gap-3">
-                        <div className="h-14 w-14 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 overflow-hidden flex items-center justify-center">
-                          {group.listings[0]?.image_url ? (
-                            <Image
-                              src={group.listings[0].image_url}
-                              alt={group.name}
-                              width={56}
-                              height={56}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-[10px] text-zinc-500 dark:text-zinc-400">No Image</span>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                            {group.number || 'No Number'}
-                          </p>
-                          <p className="text-base font-semibold text-zinc-900 dark:text-white">
-                            {group.name}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="md:col-span-2 md:text-right">
-                        <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:hidden">Lowest</p>
-                        <p className="text-sm font-semibold text-zinc-900 dark:text-white">
-                          {lowestPrice === null
-                            ? '—'
-                            : formatPrice(lowestPrice)}
-                        </p>
-                      </div>
-
-                      <div className="md:col-span-2 md:text-right">
-                        <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:hidden">Listings</p>
-                        <p className="text-sm font-semibold text-zinc-900 dark:text-white">
-                          {group.listings.length}
-                        </p>
-                      </div>
-
-                      <div className="md:col-span-2 md:text-right">
-                        <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:hidden">Set</p>
-                        <p className="text-sm text-zinc-700 dark:text-zinc-200">
-                          {group.setCode || '—'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                        Listings
-                      </p>
-                      <div className="mt-2 divide-y divide-zinc-200 dark:divide-zinc-800">
-                        {group.listings.map((listing) => (
-                          <div
-                            key={listing.id}
-                            className="flex items-center justify-between py-2 text-sm gap-4"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center rounded-full border border-zinc-300 dark:border-zinc-700 px-2 py-0.5 text-xs text-zinc-600 dark:text-zinc-300">
-                                {listing.condition || 'Condition not listed'}
-                              </span>
-                              {listing.rarity ? (
-                                <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                                  {listing.rarity}
-                                </span>
-                              ) : null}
-                            </div>
-                            <span className="font-semibold text-zinc-900 dark:text-white">
-                              {formatPrice(listing.price)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
-            </div>
+            <CardBrowser
+              groups={cardListingGroups.map((group) => ({
+                key: group.key,
+                slug: group.slug,
+                href: `/catalog/${gameSlug}/${setSlug}/${encodeURIComponent(group.slug)}${langParam}`,
+                name: group.name,
+                number: group.number,
+                rarity: group.rarity,
+                imageUrl: group.imageUrl,
+                releaseDate: group.releaseDate,
+                listingsCount: group.listings.length,
+                lowestPrice: getLowestPrice(group.listings.map((listing) => listing.price)),
+              }))}
+              labels={{
+                viewGallery: t.catalog.viewGallery,
+                viewList: t.catalog.viewList,
+                visibleResults: t.catalog.visibleResults,
+                listingCount: t.catalog.listingCount,
+                lowestPrice: t.catalog.lowestPrice,
+                noImage: t.catalog.noImage,
+                openDetails: t.catalog.openDetails,
+                priceUnavailable: t.catalog.noListingPrices,
+                emptyMessage: t.catalog.cardsEmpty,
+              }}
+            />
           )}
         </div>
       </div>

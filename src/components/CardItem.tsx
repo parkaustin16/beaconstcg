@@ -9,14 +9,21 @@ interface CardItemProps {
 }
 
 export default function CardItem({ card }: CardItemProps) {
+  const href = `/card/${card.id ?? card.card_id ?? ''}`;
+  const name = card.name ?? card.card_name ?? 'Card';
+  const game = card.game ?? card.language ?? 'Unknown';
+  const rarity = card.rarity ?? card.rarity_name ?? 'Unknown rarity';
+  const condition = card.condition ?? 'Condition unavailable';
+  const price = typeof card.price === 'number' ? card.price : null;
+
   return (
-    <Link href={`/card/${card.id}`}>
+    <Link href={href}>
       <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
         <div className="aspect-w-3 aspect-h-4 bg-zinc-200 dark:bg-zinc-700">
           {card.image_url ? (
             <Image
               src={card.image_url}
-              alt={card.name}
+              alt={name}
               width={300}
               height={400}
               className="w-full h-48 object-cover"
@@ -29,17 +36,17 @@ export default function CardItem({ card }: CardItemProps) {
         </div>
         <div className="p-4">
           <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
-            {card.name}
+            {name}
           </h3>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-            {card.game}
+            {game}
           </p>
           <div className="flex justify-between items-center">
             <span className="text-xs text-zinc-500 dark:text-zinc-500">
-              {card.rarity} • {card.condition}
+              {rarity} • {condition}
             </span>
             <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-              ${card.price.toFixed(2)}
+              {price === null ? 'N/A' : `$${price.toFixed(2)}`}
             </span>
           </div>
         </div>

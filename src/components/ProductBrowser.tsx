@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 type ProductListing = {
 	id: string;
@@ -11,6 +12,7 @@ type ProductListing = {
 
 type ProductGroup = {
 	key: string;
+	href: string;
 	name: string;
 	productType: string | null;
 	imageUrl: string | null;
@@ -42,6 +44,9 @@ type ProductBrowserLabels = {
 	sealedProductFallback: string;
 	noImage: string;
 	fromPrefix: string;
+	viewGallery: string;
+	viewList: string;
+	openDetails: string;
 };
 
 type ProductBrowserProps = {
@@ -50,6 +55,7 @@ type ProductBrowserProps = {
 };
 
 type ProductSortOption = 'name' | 'release-newest' | 'release-oldest' | 'lowest-price';
+type ViewMode = 'gallery' | 'list';
 
 const compareNullableDates = (
 	left: string | null,
@@ -78,6 +84,7 @@ export default function ProductBrowser({ groups, labels }: ProductBrowserProps) 
 	const [seriesFilter, setSeriesFilter] = useState('all');
 	const [productTypeFilter, setProductTypeFilter] = useState('all');
 	const [sortBy, setSortBy] = useState<ProductSortOption>('release-newest');
+	const [viewMode, setViewMode] = useState<ViewMode>('gallery');
 
 	const seriesOptions = useMemo(
 		() =>
@@ -206,20 +213,46 @@ export default function ProductBrowser({ groups, labels }: ProductBrowserProps) 
 				<p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
 					{labels.visibleResults}: {visibleGroups.length}
 				</p>
+
+				<div className="mt-4 inline-flex rounded-lg border border-zinc-200 bg-zinc-50 p-1 dark:border-zinc-800 dark:bg-zinc-950/40">
+					<button
+						type="button"
+						onClick={() => setViewMode('gallery')}
+						className={`rounded-md px-3 py-2 text-sm font-medium ${
+							viewMode === 'gallery'
+								? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-white'
+								: 'text-zinc-500 dark:text-zinc-400'
+						}`}
+					>
+						{labels.viewGallery}
+					</button>
+					<button
+						type="button"
+						onClick={() => setViewMode('list')}
+						className={`rounded-md px-3 py-2 text-sm font-medium ${
+							viewMode === 'list'
+								? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-white'
+								: 'text-zinc-500 dark:text-zinc-400'
+						}`}
+					>
+						{labels.viewList}
+					</button>
+				</div>
 			</div>
 
 			{visibleGroups.length === 0 ? (
 				<div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-10 text-center">
 					<p className="text-zinc-600 dark:text-zinc-400">{labels.emptyMessage}</p>
 				</div>
-			) : (
+			) : viewMode === 'gallery' ? (
 				<div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 					{visibleGroups.map((group) => {
 						const primaryListing = group.listings[0];
 
 						return (
-							<div
+							<Link
 								key={group.key}
+								href={group.href}
 								className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 sm:p-6"
 							>
 								<div className="flex gap-4">
@@ -285,9 +318,35 @@ export default function ProductBrowser({ groups, labels }: ProductBrowserProps) 
 										))}
 									</div>
 								</div>
-							</div>
+								<p className="mt-4 text-sm font-medium text-blue-600 dark:text-blue-400">{labels.openDetails}</p>
+							</Link>
 						);
 					})}
+				</div>
+			) : (
+				<div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+					<div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+						{visibleGroups.map((group) => (
+							<Link
+								key={group.key}
+								href={group.href}
+								className="grid grid-cols-1 gap-3 px-4 py-4 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-950/40 md:grid-cols-[minmax(0,1fr)_120px_140px] md:items-center"
+							>
+								<div>
+									<p className="text-sm font-semibold text-zinc-900 dark:text-white">{group.name}</p>
+									<p className="text-xs text-zinc-500 dark:text-zinc-400">
+										{[group.productType, group.series].filter(Boolean).join(' • ') || labels.openDetails}
+									</p>
+								</div>
+								<p className="text-sm text-zinc-600 dark:text-zinc-400 md:text-right">
+									{group.listings.length} {group.listings.length === 1 ? labels.listingAvailableSingular : labels.listingAvailablePlural}
+								</p>
+								<p className="text-sm font-medium text-zinc-900 dark:text-white md:text-right">
+									{group.lowestPrice === null ? labels.priceUnavailable : formatPrice(group.lowestPrice)}
+								</p>
+							</Link>
+						))}
+					</div>
 				</div>
 			)}
 		</div>

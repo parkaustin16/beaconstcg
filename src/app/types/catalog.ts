@@ -52,16 +52,26 @@ export interface CardLocalization {
  * The specific card information
  */
 export interface Card {
-  id: string;
-  set_id: string;
-  name: string;           // Base/English name
-  number: string;         // e.g., "OP01-001"
-  set_code: string;       // e.g., "OP01"
-  game: string;
-  rarity: string;
-  condition: string;
-  price: number;
+  id?: string | number;
+  card_id?: string | number;
+  set_id?: string | null;
+  name?: string;
+  card_name?: string | null;
+  number?: string | null;
+  set_code?: string | null;
+  game?: string | null;
+  rarity?: string | null;
+  rarity_name?: string | null;
+  variant_name?: string | null;
+  condition?: string | null;
+  price?: number | null;
+  card_slug?: string | null;
+  release_date?: string | null;
   image_url?: string | null;
+  metadata?: Record<string, unknown> | null;
+  language?: string | null;
+  created_at?: string | null;
+  cameos?: unknown;
   localizations?: CardLocalization[]; // Joined data
 }
 
@@ -94,5 +104,10 @@ export interface Product {
   local_slug?: string | null;
   image_url?: string | null;
   price?: number | null;
+  metadata?: Record<string, unknown> | null;
+  language?: string | null;
+  created_at?: string | null;
+  set_code?: string | null;
+  product_code?: string | null;
   [key: string]: unknown;
 }
