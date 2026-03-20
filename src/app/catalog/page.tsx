@@ -43,6 +43,8 @@ export default function CatalogPage() {
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [openGameKey, setOpenGameKey] = useState<string | null>(null);
+	const [searchQuery, setSearchQuery] = useState('');
+	const [languageFilter, setLanguageFilter] = useState('all');
 
 	useEffect(() => {
 		let isMounted = true;
@@ -124,6 +126,32 @@ export default function CatalogPage() {
 			.sort((a, b) => a.sortName.localeCompare(b.sortName));
 	}, [games, t.games, t.languageNames]);
 
+	const visibleGames = useMemo(() => {
+		const normalizedQuery = searchQuery.trim().toLowerCase();
+
+		return groupedGames.filter((game) => {
+			const matchesLanguage =
+				languageFilter === 'all' ||
+				game.options.some((option) => option.slug.endsWith(`-${languageFilter}`));
+
+			if (!matchesLanguage) {
+				return false;
+			}
+
+			if (!normalizedQuery) {
+				return true;
+			}
+
+			const haystacks = [
+				game.name,
+				game.sortName,
+				...game.options.map((option) => `${option.label} ${option.slug}`),
+			];
+
+			return haystacks.some((value) => value.toLowerCase().includes(normalizedQuery));
+		});
+	}, [groupedGames, languageFilter, searchQuery]);
+
 	return (
 		<div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
 			<div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -167,8 +195,54 @@ export default function CatalogPage() {
 							</p>
 						</div>
 					) : (
-						<div className="grid grid-cols-1 items-start sm:grid-cols-2 lg:grid-cols-3 gap-6">
-							{groupedGames.map((game) => (
+						<>
+							<div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
+								<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+									<label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+										<span className="font-semibold">{t.catalog.searchLabel}</span>
+										<input
+											type="search"
+											value={searchQuery}
+											onChange={(event) => setSearchQuery(event.target.value)}
+											placeholder={t.catalog.searchGamesPlaceholder}
+											className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+										/>
+									</label>
+
+									<label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+										<span className="font-semibold">{t.catalog.filterLanguage}</span>
+										<select
+											value={languageFilter}
+											onChange={(event) => setLanguageFilter(event.target.value)}
+											className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+										>
+											<option value="all">{t.catalog.allLanguages}</option>
+											<option value="en">{t.languageNames.en}</option>
+											<option value="kr">{t.languageNames.kr}</option>
+											<option value="jp">{t.languageNames.jp}</option>
+										</select>
+									</label>
+
+									<div className="flex flex-col justify-end rounded-lg bg-zinc-50 px-3 py-2 text-sm dark:bg-zinc-950/50">
+										<span className="font-semibold text-zinc-700 dark:text-zinc-300">
+											{t.catalog.visibleResults}
+										</span>
+										<span className="mt-1 text-lg font-semibold text-zinc-900 dark:text-white">
+											{visibleGames.length}
+										</span>
+									</div>
+								</div>
+							</div>
+
+							{visibleGames.length === 0 ? (
+								<div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-10 text-center">
+									<p className="text-zinc-600 dark:text-zinc-400">
+										{t.catalog.gamesEmptyFiltered}
+									</p>
+								</div>
+							) : (
+								<div className="grid grid-cols-1 items-start sm:grid-cols-2 lg:grid-cols-3 gap-6">
+									{visibleGames.map((game) => (
 								<div
 									key={game.key}
 									className="group self-start rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm"
@@ -225,7 +299,9 @@ export default function CatalogPage() {
 									) : null}
 								</div>
 							))}
-						</div>
+								</div>
+							)}
+						</>
 					)}
 				</div>
 			</div>

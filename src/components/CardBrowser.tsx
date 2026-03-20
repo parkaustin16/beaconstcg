@@ -18,6 +18,10 @@ type CardGroup = {
 };
 
 type CardBrowserLabels = {
+  searchLabel: string;
+  searchPlaceholder: string;
+  filterRarity: string;
+  allRarities: string;
   viewGallery: string;
   viewList: string;
   visibleResults: string;
@@ -39,16 +43,44 @@ type ViewMode = 'gallery' | 'list';
 const formatPrice = (value: number) => `$${value.toFixed(2)}`;
 
 export default function CardBrowser({ groups, labels }: CardBrowserProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [rarityFilter, setRarityFilter] = useState('all');
   const [viewMode, setViewMode] = useState<ViewMode>('gallery');
 
-  const sortedGroups = useMemo(
+  const rarityOptions = useMemo(
     () =>
-      [...groups].sort((left, right) => {
+      Array.from(
+        new Set(
+          groups
+            .map((group) => group.rarity?.trim())
+            .filter((rarity): rarity is string => Boolean(rarity))
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [groups]
+  );
+
+  const sortedGroups = useMemo(
+    () => {
+      const normalizedQuery = searchQuery.trim().toLowerCase();
+
+      return groups
+        .filter((group) => {
+          const matchesSearch =
+            normalizedQuery.length === 0 ||
+            [group.name, group.number ?? '', group.rarity ?? '']
+              .some((value) => value.toLowerCase().includes(normalizedQuery));
+          const matchesRarity =
+            rarityFilter === 'all' || (group.rarity?.trim() ?? '') === rarityFilter;
+
+          return matchesSearch && matchesRarity;
+        })
+        .sort((left, right) => {
         const leftNumber = left.number ?? '';
         const rightNumber = right.number ?? '';
         return leftNumber.localeCompare(rightNumber) || left.name.localeCompare(right.name);
-      }),
-    [groups]
+        });
+    },
+    [groups, rarityFilter, searchQuery]
   );
 
   if (sortedGroups.length === 0) {
@@ -61,34 +93,63 @@ export default function CardBrowser({ groups, labels }: CardBrowserProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:items-end">
+          <label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <span className="font-semibold">{labels.searchLabel}</span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={labels.searchPlaceholder}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <span className="font-semibold">{labels.filterRarity}</span>
+            <select
+              value={rarityFilter}
+              onChange={(event) => setRarityFilter(event.target.value)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+            >
+              <option value="all">{labels.allRarities}</option>
+              {rarityOptions.map((rarity) => (
+                <option key={rarity} value={rarity}>
+                  {rarity}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="inline-flex rounded-lg border border-zinc-200 bg-zinc-50 p-1 dark:border-zinc-800 dark:bg-zinc-950/40">
+            <button
+              type="button"
+              onClick={() => setViewMode('gallery')}
+              className={`rounded-md px-3 py-2 text-sm font-medium ${
+                viewMode === 'gallery'
+                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-white'
+                  : 'text-zinc-500 dark:text-zinc-400'
+              }`}
+            >
+              {labels.viewGallery}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`rounded-md px-3 py-2 text-sm font-medium ${
+                viewMode === 'list'
+                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-white'
+                  : 'text-zinc-500 dark:text-zinc-400'
+              }`}
+            >
+              {labels.viewList}
+            </button>
+          </div>
+        </div>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           {labels.visibleResults}: {sortedGroups.length}
         </p>
-        <div className="inline-flex rounded-lg border border-zinc-200 bg-zinc-50 p-1 dark:border-zinc-800 dark:bg-zinc-950/40">
-          <button
-            type="button"
-            onClick={() => setViewMode('gallery')}
-            className={`rounded-md px-3 py-2 text-sm font-medium ${
-              viewMode === 'gallery'
-                ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-white'
-                : 'text-zinc-500 dark:text-zinc-400'
-            }`}
-          >
-            {labels.viewGallery}
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            className={`rounded-md px-3 py-2 text-sm font-medium ${
-              viewMode === 'list'
-                ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-white'
-                : 'text-zinc-500 dark:text-zinc-400'
-            }`}
-          >
-            {labels.viewList}
-          </button>
-        </div>
       </div>
 
       {viewMode === 'gallery' ? (

@@ -13,6 +13,8 @@ type SetItem = {
 };
 
 type SetBrowserLabels = {
+	searchLabel: string;
+	searchPlaceholder: string;
 	filterSeries: string;
 	allSeries: string;
 	sortBy: string;
@@ -21,6 +23,7 @@ type SetBrowserLabels = {
 	sortReleaseNewest: string;
 	sortReleaseOldest: string;
 	visibleResults: string;
+	emptyMessage: string;
 };
 
 type SetBrowserProps = {
@@ -45,6 +48,7 @@ const compareNullableDates = (
 };
 
 export default function SetBrowser({ sets, labels }: SetBrowserProps) {
+	const [searchQuery, setSearchQuery] = useState('');
 	const [seriesFilter, setSeriesFilter] = useState('all');
 	const [sortBy, setSortBy] = useState<SetSortOption>('release-newest');
 
@@ -61,12 +65,18 @@ export default function SetBrowser({ sets, labels }: SetBrowserProps) {
 	);
 
 	const visibleSets = useMemo(() => {
+		const normalizedQuery = searchQuery.trim().toLowerCase();
 		const filtered = sets.filter((set) => {
+			const matchesSearch =
+				normalizedQuery.length === 0 ||
+				[set.name, set.code, set.series ?? '']
+					.some((value) => value.toLowerCase().includes(normalizedQuery));
+
 			if (seriesFilter === 'all') {
-				return true;
+				return matchesSearch;
 			}
 
-			return (set.series?.trim() ?? '') === seriesFilter;
+			return matchesSearch && (set.series?.trim() ?? '') === seriesFilter;
 		});
 
 		return filtered.sort((left, right) => {
@@ -88,12 +98,23 @@ export default function SetBrowser({ sets, labels }: SetBrowserProps) {
 					return left.code.localeCompare(right.code) || left.name.localeCompare(right.name);
 			}
 		});
-	}, [seriesFilter, sets, sortBy]);
+	}, [searchQuery, seriesFilter, sets, sortBy]);
 
 	return (
 		<div className="flex flex-col gap-6">
 			<div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-5">
-				<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+					<label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+						<span className="font-semibold">{labels.searchLabel}</span>
+						<input
+							type="search"
+							value={searchQuery}
+							onChange={(event) => setSearchQuery(event.target.value)}
+							placeholder={labels.searchPlaceholder}
+							className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+						/>
+					</label>
+
 					<label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300">
 						<span className="font-semibold">{labels.filterSeries}</span>
 						<select
@@ -137,7 +158,7 @@ export default function SetBrowser({ sets, labels }: SetBrowserProps) {
 
 			{visibleSets.length === 0 ? (
 				<div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-10 text-center">
-					<p className="text-zinc-600 dark:text-zinc-400">No sets match the current filters.</p>
+					<p className="text-zinc-600 dark:text-zinc-400">{labels.emptyMessage}</p>
 				</div>
 			) : (
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

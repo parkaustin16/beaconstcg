@@ -290,6 +290,8 @@ export default async function GameDetailPage({
 						<SetBrowser
 							sets={visibleSets}
 							labels={{
+								searchLabel: translations[language].catalog.searchLabel,
+								searchPlaceholder: translations[language].catalog.searchSetsPlaceholder,
 								filterSeries: translations[language].catalog.filterSeries,
 								allSeries: translations[language].catalog.allSeries,
 								sortBy: translations[language].catalog.sortBy,
@@ -298,6 +300,7 @@ export default async function GameDetailPage({
 								sortReleaseNewest: translations[language].catalog.sortReleaseNewest,
 								sortReleaseOldest: translations[language].catalog.sortReleaseOldest,
 								visibleResults: translations[language].catalog.visibleResults,
+								emptyMessage: translations[language].catalog.setsEmptyFiltered,
 							}}
 						/>
 					)}

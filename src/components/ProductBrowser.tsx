@@ -23,6 +23,8 @@ type ProductGroup = {
 };
 
 type ProductBrowserLabels = {
+	searchLabel: string;
+	searchPlaceholder: string;
 	filterSeries: string;
 	filterProductType: string;
 	allSeries: string;
@@ -81,6 +83,7 @@ const compareNullableNumbers = (left: number | null, right: number | null) => {
 const formatPrice = (value: number) => `$${value.toFixed(2)}`;
 
 export default function ProductBrowser({ groups, labels }: ProductBrowserProps) {
+	const [searchQuery, setSearchQuery] = useState('');
 	const [seriesFilter, setSeriesFilter] = useState('all');
 	const [productTypeFilter, setProductTypeFilter] = useState('all');
 	const [sortBy, setSortBy] = useState<ProductSortOption>('release-newest');
@@ -111,13 +114,18 @@ export default function ProductBrowser({ groups, labels }: ProductBrowserProps) 
 	);
 
 	const visibleGroups = useMemo(() => {
+		const normalizedQuery = searchQuery.trim().toLowerCase();
 		const filtered = groups.filter((group) => {
+			const matchesSearch =
+				normalizedQuery.length === 0 ||
+				[group.name, group.productType ?? '', group.series ?? '']
+					.some((value) => value.toLowerCase().includes(normalizedQuery));
 			const matchesSeries =
 				seriesFilter === 'all' || (group.series?.trim() ?? '') === seriesFilter;
 			const matchesProductType =
 				productTypeFilter === 'all' || (group.productType?.trim() ?? '') === productTypeFilter;
 
-			return matchesSeries && matchesProductType;
+			return matchesSearch && matchesSeries && matchesProductType;
 		});
 
 		return filtered.sort((left, right) => {
@@ -142,7 +150,7 @@ export default function ProductBrowser({ groups, labels }: ProductBrowserProps) 
 					return left.name.localeCompare(right.name);
 			}
 		});
-	}, [groups, productTypeFilter, seriesFilter, sortBy]);
+	}, [groups, productTypeFilter, searchQuery, seriesFilter, sortBy]);
 
 	const totalListings = useMemo(
 		() => visibleGroups.reduce((total, group) => total + group.listings.length, 0),
@@ -152,7 +160,18 @@ export default function ProductBrowser({ groups, labels }: ProductBrowserProps) 
 	return (
 		<div className="flex flex-col gap-8">
 			<div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8">
-				<div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+				<div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
+					<label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300 lg:col-span-2">
+						<span className="font-semibold">{labels.searchLabel}</span>
+						<input
+							type="search"
+							value={searchQuery}
+							onChange={(event) => setSearchQuery(event.target.value)}
+							placeholder={labels.searchPlaceholder}
+							className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+						/>
+					</label>
+
 					<label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300 lg:col-span-1">
 						<span className="font-semibold">{labels.filterSeries}</span>
 						<select

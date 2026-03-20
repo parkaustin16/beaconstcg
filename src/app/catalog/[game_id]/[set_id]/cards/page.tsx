@@ -194,6 +194,10 @@ export default async function SetCardsPage({
                 lowestPrice: getLowestPrice(group.listings.map((listing) => listing.price)),
               }))}
               labels={{
+                searchLabel: t.catalog.searchLabel,
+                searchPlaceholder: t.catalog.searchCardsPlaceholder,
+                filterRarity: t.catalog.filterRarity,
+                allRarities: t.catalog.allRarities,
                 viewGallery: t.catalog.viewGallery,
                 viewList: t.catalog.viewList,
                 visibleResults: t.catalog.visibleResults,
@@ -202,7 +206,7 @@ export default async function SetCardsPage({
                 noImage: t.catalog.noImage,
                 openDetails: t.catalog.openDetails,
                 priceUnavailable: t.catalog.noListingPrices,
-                emptyMessage: t.catalog.cardsEmpty,
+                emptyMessage: t.catalog.cardsEmptyFiltered,
               }}
             />
           )}
