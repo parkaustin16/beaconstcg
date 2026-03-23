@@ -1,4 +1,4 @@
-# BeaconsTCG - Trading Card Marketplace
+# BeaconsTCG - Trading Card Database/Marketplace
 
 A modern web marketplace for trading cards built with Next.js, Node.js, and Supabase.
 
