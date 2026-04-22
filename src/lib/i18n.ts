@@ -218,7 +218,7 @@ export const translations = {
     },
     home: {
       titlePrefix: '환영합니다',
-      titleName: 'CardJang',
+      titleName: '카드장',
       subtitle:
         '트레이딩 카드의 대표 마켓플레이스. 좋아하는 게임의 카드를 사고, 팔고, 교환하세요.',
       browseMarketplace: '마켓플레이스 보기',
@@ -238,8 +238,8 @@ export const translations = {
       empty: '마켓플레이스 상품이 곧 표시됩니다.',
     },
     auth: {
-      loginTitle: 'CardJang 로그인',
-      signupTitle: 'CardJang 회원가입',
+      loginTitle: '카드장 로그인',
+      signupTitle: '카드장 회원가입',
       forgotPasswordTitle: '비밀번호 재설정',
       forgotIdTitle: '계정 복구',
       resetPasswordTitle: '새 비밀번호 설정',
