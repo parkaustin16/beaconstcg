@@ -17,7 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <LocalizedDocumentMetadata />
+        <Suspense fallback={null}>
+          <LocalizedDocumentMetadata />
+        </Suspense>
         <Suspense
           fallback={
             <div className="bg-white border-b border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800">
